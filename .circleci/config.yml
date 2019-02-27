@@ -75,7 +75,7 @@ jobs:
           # set the ownership of all this
           docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/dark-cli"
     - run:
-        command: ./test
+        command: docker run -it dark-cli ./test
     - run:
         name: Copy out generated files and caches
         command: |
