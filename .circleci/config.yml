@@ -1,177 +1,107 @@
-version: 2.1
-executors:
-  my-executor:
+version: 2
+jobs:
+  build-dark-cli:
     docker:
-      - image: docker:stable-git
-
-commands:
-  ##########################
-  # Getting into the remote container
-  ##########################
-  copy-into-container:
+    - image: docker:stable-git
     steps:
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /home/dark/dark-cli --name vols alpine:3.4 /bin/true
-            docker cp . vols:/home/dark/dark-cli
-            # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
-
-  ##########################
-  # Artifacts
-  ##########################
-  extract-and-save-artifacts:
-    steps:
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            mkdir -p artifacts
-            docker cp vols:/home/dark/dark-cli/target artifacts/target
-      - store_artifacts:
-          path: artifacts
-
-
-  ##########################
-  # Caches
-  ##########################
-  clean-caches:
-    parameters:
-      path:
-        type: string
-    steps:
-      - run:
-          name: maybe clear caches
-          # since we don't checksum the cache on its contents, it may
-          # continue to grow. as a result, let's clear the cache weekly.
-          # we store the day the cache was built in the cache. if the
-          # cache was built on friday, and today is not friday, then
-          # it's the first build after last week, and clear it.
-          command: |
-            if [[ `date +"%a"` != "friday" && `cat << parameters.path >>/cache_day` == "friday" ]]; then
-              echo "clearing caches"
-              rm -rf << parameters.path >>
-            else
-              echo "not clearing caches"
-            fi
-            mkdir -p << parameters.path >>
-            date +"%a" > << parameters.path >>/cache_day
-
-  ##########################
-  # Initializing the containers
-  ##########################
-  initialize:
-    steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-
-      # Save the docker env: type .docker-env when sshing in, then you can
-      # use ./scripts/run-in-docker
-      - run: |
+    - checkout
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run:
+        command: |
           env \
           | grep 'DOCKER\|NO_PROXY' \
           | sed 's/^/export /' \
           > /root/docker-env
-
-      - run:
-          name: Install outer container utilities
-          # coreutils for gnu date
-          command: |
-            apk add --update bash coreutils nginx jq
-
-      - run:
-          name: "Setup cache names"
-          command: |
-            date +"%F" > today-timestamp
-            date +"%F" -d "today - 1 days" > minus1-timestamp
-            date +"%F" -d "today - 2 days" > minus2-timestamp
-            date +"%F" -d "today - 3 days" > minus3-timestamp
-
-
-  ##########################
-  # misc
-  ##########################
-  run-background-container:
-    steps:
-      - run:
-          name: Build container if necessary
-          command: docker build -t dark-cli .
-      - run:
-          name: Run background container
-          command: docker run --rm --name dark-cli-ctr -it dark-cli
-          background: true
-  wait-for-container:
-    steps:
-      - run:
-          name: "Wait for container"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 5m scripts/wait-until-container-ready
-
-##########################
-# Actual workflow
-##########################
-jobs:
-  build-dark-cli:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
-            - v10-dark-cli-{{ checksum "today-timestamp" }}
-            - v10-dark-cli-{{ checksum "minus1-timestamp" }}
-            - v10-dark-cli-{{ checksum "minus2-timestamp" }}
-            - v10-dark-cli-{{ checksum "minus3-timestamp" }}
-      - clean-caches: { path: "dark-cli/target" }
-      - clean-caches: { path: "cargo" }
-      - run:
-          name: Set up volume for cargo
-          command: |
-            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
-            docker cp cargo dark_rust_cargo:/usr/local/cargo
-            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
-            rm -Rf cargo
-      - run:
-          name: Set up volume for target
-          command: |
-            docker create -v /home/dark/app/dark-cli-target --name dark_cli_target alpine:3.4 /bin/true
-            docker cp dark-cli/target dark_cli_target:/home/dark/dark-cli/target
-            docker run -i --volumes-from dark_cli_target alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app/dark-cli/target"
-            rm -Rf dark-cli
-      - copy-into-container
-      - run: ./test
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            docker cp vols:/home/dark/dark-cli/target dark-cli
-            docker cp dark_rust_cargo:/usr/local/cargo cargo
-      - save_cache:
-          name: "Save cargolock-specific dark-cli cache"
-          paths:
-            - dark-cli/target
-            - cargo
-          key: v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
-      - save_cache:
-          name: "Save daily dark-cli cache"
-          paths:
-            - dark-cli/target
-            - cargo
-          key: v10-dark-cli-{{ checksum "today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - dark-cli/target/x86_64-apple-darwin/release/dark-cli
-            - dark-cli/target/x86_64-pc-windows-gnu/release/dark-cli
-            - dark-cli/target/x86_64-unknown-linux-gnu/release/dark-cli
-            - dark-cli/target/x86_64-unknown-linux-musl/release/dark-cli
-
+    - run:
+        name: Install outer container utilities
+        command: |
+          apk add --update bash coreutils nginx jq
+    - run:
+        name: Setup cache names
+        command: |
+          date +"%!F(MISSING)" > today-timestamp
+          date +"%!F(MISSING)" -d "today - 1 days" > minus1-timestamp
+          date +"%!F(MISSING)" -d "today - 2 days" > minus2-timestamp
+          date +"%!F(MISSING)" -d "today - 3 days" > minus3-timestamp
+    - restore_cache:
+        keys:
+        - v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
+        - v10-dark-cli-{{ checksum "today-timestamp" }}
+        - v10-dark-cli-{{ checksum "minus1-timestamp" }}
+        - v10-dark-cli-{{ checksum "minus2-timestamp" }}
+        - v10-dark-cli-{{ checksum "minus3-timestamp" }}
+    - run:
+        name: maybe clear caches
+        command: |
+          if [[ `date +"%!a(MISSING)"` != "friday" && `cat dark-cli/target/cache_day` == "friday" ]]; then
+            echo "clearing caches"
+            rm -rf dark-cli/target
+          else
+            echo "not clearing caches"
+          fi
+          mkdir -p dark-cli/target
+          date +"%!a(MISSING)" > dark-cli/target/cache_day
+    - run:
+        name: maybe clear caches
+        command: |
+          if [[ `date +"%!a(MISSING)"` != "friday" && `cat cargo/cache_day` == "friday" ]]; then
+            echo "clearing caches"
+            rm -rf cargo
+          else
+            echo "not clearing caches"
+          fi
+          mkdir -p cargo
+          date +"%!a(MISSING)" > cargo/cache_day
+    - run:
+        name: Set up volume for cargo
+        command: |
+          docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
+          docker cp cargo dark_rust_cargo:/usr/local/cargo
+          docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
+          rm -Rf cargo
+    - run:
+        name: Set up volume for target
+        command: |
+          docker create -v /home/dark/dark-cli/target --name dark_cli_target alpine:3.4 /bin/true
+          docker cp dark-cli/target dark_cli_target:/home/dark/dark-cli/target
+          docker run -i --volumes-from dark_cli_target alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/dark-cli/target"
+          rm -Rf dark-cli
+    - run:
+        name: Copy app directory into dev container
+        command: |
+          docker create -v /home/dark/dark-cli --name vols alpine:3.4 /bin/true
+          docker cp . vols:/home/dark/dark-cli
+          # set the ownership of all this
+          docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+    - run:
+        command: ./test
+    - run:
+        name: Copy out generated files and caches
+        command: |
+          docker cp vols:/home/dark/dark-cli/target dark-cli
+          docker cp dark_rust_cargo:/usr/local/cargo cargo
+    - save_cache:
+        name: Save cargolock-specific dark-cli cache
+        paths:
+        - dark-cli/target
+        - cargo
+        key: v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
+    - save_cache:
+        name: Save daily dark-cli cache
+        paths:
+        - dark-cli/target
+        - cargo
+        key: v10-dark-cli-{{ checksum "today-timestamp" }}
+    - persist_to_workspace:
+        root: .
+        paths:
+        - dark-cli/target/x86_64-apple-darwin/release/dark-cli
+        - dark-cli/target/x86_64-pc-windows-gnu/release/dark-cli
+        - dark-cli/target/x86_64-unknown-linux-gnu/release/dark-cli
+        - dark-cli/target/x86_64-unknown-linux-musl/release/dark-cli
 workflows:
   version: 2
   build-and-deploy:
     jobs:
-      # initial builds & tests
-      - build-dark-cli
+    - build-dark-cli
