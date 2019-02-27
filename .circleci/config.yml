@@ -77,7 +77,7 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths:
-            - /usr/local/cargo/registry
+            - /usr/local/cargo
             - target/debug/.fingerprint
             - target/debug/build
             - target/debug/deps
@@ -97,7 +97,7 @@ jobs:
           name: "Cargo.lock cache"
           key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
-            - /usr/local/cargo/registry
+            - cargo
             - target/debug/.fingerprint
             - target/debug/build
             - target/debug/deps
