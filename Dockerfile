@@ -51,12 +51,6 @@ RUN rustup component add clippy-preview rustfmt-preview
 
 ENV TERM=xterm-256color
 
-## required by Rust hyper-tls crate
-#RUN apt install \
-#      -y \
-#      --no-install-recommends \
-#      libssl-dev=1.0.2g-1ubuntu13.6
-
 RUN rustup target add x86_64-apple-darwin \
   && rustup target add x86_64-pc-windows-gnu \
   && rustup target add x86_64-unknown-linux-musl
