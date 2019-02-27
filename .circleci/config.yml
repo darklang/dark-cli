@@ -1,107 +1,153 @@
 version: 2
 jobs:
-  build-dark-cli:
+  test:
     docker:
-    - image: docker:stable-git
+    - image: circleci/rust:1.32.0-stretch
     steps:
     - checkout
-    - setup_remote_docker:
-        docker_layer_caching: true
     - run:
-        command: |
-          env \
-          | grep 'DOCKER\|NO_PROXY' \
-          | sed 's/^/export /' \
-          > /root/docker-env
+        name: Version information
+        command: rustc --version; cargo --version; rustup --version
     - run:
-        name: Install outer container utilities
-        command: |
-          apk add --update bash coreutils nginx jq
-    - run:
-        name: Setup cache names
-        command: |
-          date +"%!F(MISSING)" > today-timestamp
-          date +"%!F(MISSING)" -d "today - 1 days" > minus1-timestamp
-          date +"%!F(MISSING)" -d "today - 2 days" > minus2-timestamp
-          date +"%!F(MISSING)" -d "today - 3 days" > minus3-timestamp
+        name: Calculate dependencies
+        command: cargo generate-lockfile
     - restore_cache:
+        name: Cargo.lock cache
         keys:
-        - v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
-        - v10-dark-cli-{{ checksum "today-timestamp" }}
-        - v10-dark-cli-{{ checksum "minus1-timestamp" }}
-        - v10-dark-cli-{{ checksum "minus2-timestamp" }}
-        - v10-dark-cli-{{ checksum "minus3-timestamp" }}
+        - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
     - run:
-        name: maybe clear caches
-        command: |
-          if [[ `date +"%!a(MISSING)"` != "friday" && `cat dark-cli/target/cache_day` == "friday" ]]; then
-            echo "clearing caches"
-            rm -rf dark-cli/target
-          else
-            echo "not clearing caches"
-          fi
-          mkdir -p dark-cli/target
-          date +"%!a(MISSING)" > dark-cli/target/cache_day
+        name: install-apt-deps
+        command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
     - run:
-        name: maybe clear caches
-        command: |
-          if [[ `date +"%!a(MISSING)"` != "friday" && `cat cargo/cache_day` == "friday" ]]; then
-            echo "clearing caches"
-            rm -rf cargo
-          else
-            echo "not clearing caches"
-          fi
-          mkdir -p cargo
-          date +"%!a(MISSING)" > cargo/cache_day
+        name: install-rust-deps
+        command: rustup component add clippy-preview rustfmt-preview && rustup target add x86_64-apple-darwin && rustup target add x86_64-pc-windows-gnu && rustup target add x86_64-unknown-linux-musl
     - run:
-        name: Set up volume for cargo
-        command: |
-          docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
-          docker cp cargo dark_rust_cargo:/usr/local/cargo
-          docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
-          rm -Rf cargo
+        name: install-osxcross-files
+        command: curl -O https://dark-osxcross-files.storage.googleapis.com/osxcross-with-clang.tar.gz && tar --strip-components=1 -xf osxcross-with-clang.tar.gz
     - run:
-        name: Set up volume for target
-        command: |
-          docker create -v /home/dark/dark-cli/target --name dark_cli_target alpine:3.4 /bin/true
-          docker cp dark-cli/target dark_cli_target:/home/dark/dark-cli/target
-          docker run -i --volumes-from dark_cli_target alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/dark-cli/target"
-          rm -Rf dark-cli
+        name: test
+        command: PATH=bin:$PATH ./test
     - run:
-        name: Copy app directory into dev container
-        command: |
-          docker create -v /home/dark/dark-cli --name vols alpine:3.4 /bin/true
-          docker cp . vols:/home/dark/dark-cli
-          # set the ownership of all this
-          docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/dark-cli"
-    - run:
-        command: docker run -it dark-cli ./test
-    - run:
-        name: Copy out generated files and caches
-        command: |
-          docker cp vols:/home/dark/dark-cli/target dark-cli
-          docker cp dark_rust_cargo:/usr/local/cargo cargo
-    - save_cache:
-        name: Save cargolock-specific dark-cli cache
-        paths:
-        - dark-cli/target
-        - cargo
-        key: v10-dark-cli-{{ checksum "dark-cli/Cargo.lock" }}
-    - save_cache:
-        name: Save daily dark-cli cache
-        paths:
-        - dark-cli/target
-        - cargo
-        key: v10-dark-cli-{{ checksum "today-timestamp" }}
+        name: debug
+        command: pwd && ls
     - persist_to_workspace:
         root: .
         paths:
-        - dark-cli/target/x86_64-apple-darwin/release/dark-cli
-        - dark-cli/target/x86_64-pc-windows-gnu/release/dark-cli
-        - dark-cli/target/x86_64-unknown-linux-gnu/release/dark-cli
-        - dark-cli/target/x86_64-unknown-linux-musl/release/dark-cli
+        - target
+    - store_artifacts:
+        path: target
+    - save_cache:
+        name: Cargo.lock cache
+        key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        paths:
+        - target
+  build:
+    docker:
+    - image: circleci/rust:1.32.0-stretch
+    steps:
+    - checkout
+    - run:
+        name: Version information
+        command: rustc --version; cargo --version; rustup --version
+    - run:
+        name: Calculate dependencies
+        command: cargo generate-lockfile
+    - restore_cache:
+        name: Cargo.lock cache
+        keys:
+        - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+    - run:
+        name: install-apt-deps
+        command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
+    - run:
+        name: Build all targets
+        command: ./build --release
+    - persist_to_workspace:
+        root: .
+        paths:
+        - target/
+    - save_cache:
+        name: Cargo.lock cache
+        paths:
+        - target
+        key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 workflows:
   version: 2
   build-and-deploy:
     jobs:
-    - build-dark-cli
+    - test
+    - build
+
+# Original config.yml file:
+# version: 2.1
+# jobs:
+#   build:
+#     docker:
+#       - image: circleci/rust:1.32.0-stretch
+#     steps:
+#       - checkout
+#       - run:
+#           name: Version information
+#           command: rustc --version; cargo --version; rustup --version
+#       - run:
+#           name: Calculate dependencies
+#           command: cargo generate-lockfile
+#       - restore_cache:
+#           name: \"Cargo.lock cache\"
+#           keys:
+#             - v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
+#       - run:
+#           name: \"install-apt-deps\"
+#           command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
+#       - run:
+#           name: Build all targets
+#           command: ./build --release
+#       - persist_to_workspace:
+#           root: \".\"
+#           paths:
+#             - target/
+#       - save_cache:
+#           name: \"Cargo.lock cache\"
+#           paths:
+#             - target
+#           key: v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
+# 
+#   test:
+#     docker:
+#       - image: circleci/rust:1.32.0-stretch
+#     steps:
+#       - checkout
+#       - run:
+#           name: Version information
+#           command: rustc --version; cargo --version; rustup --version
+#       - run:
+#           name: Calculate dependencies
+#           command: cargo generate-lockfile
+#       - restore_cache:
+#           name: \"Cargo.lock cache\"
+#           keys:
+#             - v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
+#       - run:
+#           name: \"install-apt-deps\"
+#           command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
+#       - run:
+#           name: test
+#           command: ./test
+#       - persist_to_workspace:
+#           root: \".\"
+#           paths:
+#             - target
+#       - save_cache:
+#           name: \"Cargo.lock cache\"
+#           key: v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
+#           paths:
+#             - target
+# 
+# workflows:
+#   version: 2
+#   build-and-deploy:
+#     jobs:
+#       - test
+#       - build
+# 
+#         # we need an actual deploy here
