@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+set -x
+
+cargo fmt -- --check
+
+cargo clippy -- -D warnings
