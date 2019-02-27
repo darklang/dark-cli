@@ -16,26 +16,15 @@ jobs:
         keys:
         - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
     - run:
-        name: install-apt-deps
-        command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
-    - run:
         name: install-rust-deps
-        command: rustup component add clippy-preview rustfmt-preview && rustup target add x86_64-apple-darwin && rustup target add x86_64-pc-windows-gnu && rustup target add x86_64-unknown-linux-musl
-    - run:
-        name: install-osxcross-files
-        command: curl -O https://dark-osxcross-files.storage.googleapis.com/osxcross-with-clang.tar.gz && tar --strip-components=1 -xf osxcross-with-clang.tar.gz
+        command: rustup component add clippy-preview rustfmt-preview
     - run:
         name: test
-        command: PATH=bin:$PATH ./test
-    - run:
-        name: debug
-        command: pwd && ls
+        command: ./test
     - persist_to_workspace:
         root: .
         paths:
         - target
-    - store_artifacts:
-        path: target
     - save_cache:
         name: Cargo.lock cache
         key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -60,12 +49,24 @@ jobs:
         name: install-apt-deps
         command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
     - run:
+        name: install-rust-deps
+        command: rustup target add x86_64-apple-darwin && rustup target add x86_64-unknown-linux-gnu && rustup target add x86_64-unknown-linux-musl && rustup target add x86_64-pc-windows-gnu
+    - run:
+        name: install osxcross-with-clang
+        command: curl -O https://dark-osxcross-files.storage.googleapis.com/osxcross-with-clang.tar.gz && tar --strip-components=1 -xf osxcross-with-clang.tar.gz && rm osxcross-with-clang.tar.gz
+    - run:
         name: Build all targets
-        command: ./build --release
+        command: PATH=bin:$PATH ./build --release
     - persist_to_workspace:
         root: .
         paths:
         - target/
+    - run:
+        name: prep-artifacts
+        command: mkdir artifacts && cp target/x86_64-apple-darwin/release/dark-cli artifacts/dark-cli-apple && cp target/x86_64-unknown-linux-gnu/release/dark-cli artifacts/dark-cli-linux-gnu && cp target/x86_64-unknown-linux-musl/release/dark-cli artifacts/dark-cli-linux-musl && cp target/x86_64-pc-windows-gnu/release/dark-cli.exe artifacts/dark-cli.exe
+    - store_artifacts:
+        path:
+          artifacts
     - save_cache:
         name: Cargo.lock cache
         paths:
@@ -77,77 +78,3 @@ workflows:
     jobs:
     - test
     - build
-
-# Original config.yml file:
-# version: 2.1
-# jobs:
-#   build:
-#     docker:
-#       - image: circleci/rust:1.32.0-stretch
-#     steps:
-#       - checkout
-#       - run:
-#           name: Version information
-#           command: rustc --version; cargo --version; rustup --version
-#       - run:
-#           name: Calculate dependencies
-#           command: cargo generate-lockfile
-#       - restore_cache:
-#           name: \"Cargo.lock cache\"
-#           keys:
-#             - v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
-#       - run:
-#           name: \"install-apt-deps\"
-#           command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
-#       - run:
-#           name: Build all targets
-#           command: ./build --release
-#       - persist_to_workspace:
-#           root: \".\"
-#           paths:
-#             - target/
-#       - save_cache:
-#           name: \"Cargo.lock cache\"
-#           paths:
-#             - target
-#           key: v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
-# 
-#   test:
-#     docker:
-#       - image: circleci/rust:1.32.0-stretch
-#     steps:
-#       - checkout
-#       - run:
-#           name: Version information
-#           command: rustc --version; cargo --version; rustup --version
-#       - run:
-#           name: Calculate dependencies
-#           command: cargo generate-lockfile
-#       - restore_cache:
-#           name: \"Cargo.lock cache\"
-#           keys:
-#             - v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
-#       - run:
-#           name: \"install-apt-deps\"
-#           command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
-#       - run:
-#           name: test
-#           command: ./test
-#       - persist_to_workspace:
-#           root: \".\"
-#           paths:
-#             - target
-#       - save_cache:
-#           name: \"Cargo.lock cache\"
-#           key: v1-cargo-cache-{{ arch }}-{{ checksum \"Cargo.lock\" }}
-#           paths:
-#             - target
-# 
-# workflows:
-#   version: 2
-#   build-and-deploy:
-#     jobs:
-#       - test
-#       - build
-# 
-#         # we need an actual deploy here
