@@ -92,7 +92,7 @@ fn cookie_and_csrf(
         _ => {
             return Err(DarkError::Auth {
                 status_code: authresp.status().as_u16(),
-            })
+            });
         }
     }
 
@@ -157,37 +157,43 @@ fn main() -> Result<(), DarkError> {
                 .required(true)
                 .takes_value(true)
                 .help("Your dark username"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("password")
                 .long("password")
                 .required(true)
                 .takes_value(true)
                 .requires("user")
                 .help("Your dark password"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("canvas")
                 .long("canvas")
                 .required(true)
                 .takes_value(true)
                 .help("Your canvas"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("paths")
                 .required(true)
                 .takes_value(true)
                 .help("files to upload"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("dry-run")
                 .long("dry-run")
                 .required(false)
                 .takes_value(false)
                 .help("Don't upload to canvas"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("dev")
                 .long("dev")
                 .required(false)
                 .takes_value(false)
                 .help("Run against localhost - debug only."),
-        ).get_matches();
+        )
+        .get_matches();
 
     // TODO: impl --dry-run
     // TODO: can we allow --dev only in debug build?
