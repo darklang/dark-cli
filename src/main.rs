@@ -23,24 +23,24 @@ enum DarkError {
     #[fail(display = "Upload failure")]
     Upload(#[cause] reqwest::Error),
     #[fail(display = "Unknown failure")]
-    Unknown {},
+    Unknown,
 }
 
 impl From<regex::Error> for DarkError {
     fn from(_err: regex::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown
     }
 }
 
 impl From<reqwest::Error> for DarkError {
     fn from(_err: reqwest::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown
     }
 }
 
 impl From<reqwest::header::ToStrError> for DarkError {
     fn from(_err: reqwest::header::ToStrError) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown
     }
 }
 
@@ -55,19 +55,19 @@ impl From<std::option::NoneError> for DarkError {
 
 impl From<std::io::Error> for DarkError {
     fn from(_err: std::io::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown
     }
 }
 
 impl From<std::string::String> for DarkError {
     fn from(_err: std::string::String) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown
     }
 }
 
 impl From<walkdir::Error> for DarkError {
     fn from(_err: walkdir::Error) -> Self {
-        DarkError::Unknown {}
+        DarkError::Unknown
     }
 }
 
