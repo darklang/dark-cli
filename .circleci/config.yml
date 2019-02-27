@@ -73,7 +73,7 @@ jobs:
           docker create -v /home/dark/dark-cli --name vols alpine:3.4 /bin/true
           docker cp . vols:/home/dark/dark-cli
           # set the ownership of all this
-          docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+          docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/dark-cli"
     - run:
         command: ./test
     - run:
