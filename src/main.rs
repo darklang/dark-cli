@@ -234,7 +234,10 @@ fn main() -> Result<(), DarkError> {
 
     let (form, size) = form_body(&paths.to_string())?;
 
-    println!("Going to attempt to upload files totalling {}.", size.file_size(options::DECIMAL)?);
+    println!(
+        "Going to attempt to upload files totalling {}.",
+        size.file_size(options::DECIMAL)?
+    );
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
     let client = reqwest::Client::builder()
