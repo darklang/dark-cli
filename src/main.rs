@@ -195,7 +195,7 @@ fn main() -> Result<(), DarkError> {
                 .long("dry-run")
                 .required(false)
                 .takes_value(false)
-                .help("Don't upload to canvas"),
+                .help("Don't upload to canvas, just print request"),
         )
         .arg(
             Arg::with_name("dev")
@@ -205,9 +205,6 @@ fn main() -> Result<(), DarkError> {
                 .help("Run against localhost - debug only."),
         )
         .get_matches();
-
-    // TODO: impl --dry-run
-    // TODO: can we allow --dev only in debug build?
 
     let paths = matches
         .value_of("paths")
@@ -226,6 +223,7 @@ fn main() -> Result<(), DarkError> {
     } else {
         "https://darklang.com"
     };
+    let dryrun = matches.is_present("dry-run");
 
     let (cookie, csrf) = cookie_and_csrf(
         user.to_string(),
@@ -240,16 +238,21 @@ fn main() -> Result<(), DarkError> {
     println!("Going to attempt to upload files totalling {}; note that this may error if your request is over a certain size; ask Dark for help with that.", size.file_size(options::DECIMAL)?);
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
-    let mut resp = reqwest::Client::new()
+    let req = reqwest::Client::new()
         .post(&requri)
         .header("cookie", cookie)
-        .header("x-csrf-token", csrf)
-        .multipart(form)
-        .send()
-        .or_else(|error| Err(DarkError::Upload(error)))?;
-    let _ = resp;
+        .header("x-csrf-token", csrf);
 
-    println!("{}", resp.text()?);
+    if dryrun {
+        println!("{:#?}", req);
+        println!("{:#?}", form);
+    } else {
+        let mut resp = req
+            .multipart(form)
+            .send()
+            .or_else(|error| Err(DarkError::Upload(error)))?;
+        println!("{}", resp.text()?);
+    }
 
     Ok(())
 }
