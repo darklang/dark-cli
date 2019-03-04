@@ -16,12 +16,20 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Fail)]
 enum DarkError {
-    #[fail(display = "Failure to auth: {}", status_code)]
-    Auth { status_code: u16 },
-    #[fail(display = "Failure to build multipart request")]
-    NoFilesFound { paths: String },
+    #[fail(display = "Failure to auth: {}", _0)]
+    Auth(u16),
+    #[fail(display = "No files found in {}.", _0)]
+    NoFilesFound(String),
     #[fail(display = "Upload failure")]
     Upload(#[cause] reqwest::Error),
+    #[fail(display = "Missing argument: {}", _0)]
+    MissingArgument(String),
+    #[fail(display = "Missing filename. (Can't happen.)")]
+    MissingFilename(),
+    #[fail(display = "Regex error.")]
+    Regex(),
+    #[fail(display = "No SET-COOKIE header received.")]
+    MissingSetCookie(),
     #[fail(display = "Unknown failure")]
     Unknown,
 }
@@ -90,21 +98,23 @@ fn cookie_and_csrf(
     match authresp.status() {
         StatusCode::OK => (),
         _ => {
-            return Err(DarkError::Auth {
-                status_code: authresp.status().as_u16(),
-            });
+            return Err(DarkError::Auth(authresp.status().as_u16()));
         }
     }
 
     let cookie: String = authresp
         .headers()
         .get(reqwest::header::SET_COOKIE)
-        .unwrap()
+        .ok_or(DarkError::MissingSetCookie())?
         .to_str()?
         .to_string();
 
     let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
-    let csrf: String = csrf_re.captures_iter(&authresp.text()?).next().unwrap()[1].to_string();
+    let csrf: String = csrf_re
+        .captures_iter(&authresp.text()?)
+        .next()
+        .ok_or(DarkError::Regex())?[1]
+        .to_string();
 
     Ok((cookie, csrf))
 }
@@ -120,9 +130,7 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     // "is_empty()"
     if files.peek().is_none() {
-        return Err(DarkError::NoFilesFound {
-            paths: paths.to_string(),
-        });
+        return Err(DarkError::NoFilesFound(paths.to_string()));
     };
 
     let mut len = 0;
@@ -132,12 +140,15 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
         len += file.metadata()?.len();
         println!(
             "File: {}",
-            file.path().file_name().unwrap().to_string_lossy()
+            file.path()
+                .file_name()
+                .ok_or(DarkError::MissingFilename())?
+                .to_string_lossy()
         );
         let filename = file
             .path()
             .file_name()
-            .unwrap()
+            .ok_or(DarkError::MissingFilename())?
             .to_string_lossy()
             .to_string();
         form = form.file(filename, file.path())?;
@@ -198,10 +209,18 @@ fn main() -> Result<(), DarkError> {
     // TODO: impl --dry-run
     // TODO: can we allow --dev only in debug build?
 
-    let paths = matches.value_of("paths").unwrap();
-    let canvas = matches.value_of("canvas").unwrap();
-    let user = matches.value_of("user").unwrap();
-    let password = matches.value_of("password").unwrap();
+    let paths = matches
+        .value_of("paths")
+        .ok_or_else(|| DarkError::MissingArgument("paths".to_string()))?;
+    let canvas = matches
+        .value_of("canvas")
+        .ok_or_else(|| DarkError::MissingArgument("canvas".to_string()))?;
+    let user = matches
+        .value_of("user")
+        .ok_or_else(|| DarkError::MissingArgument("user".to_string()))?;
+    let password = matches
+        .value_of("password")
+        .ok_or_else(|| DarkError::MissingArgument("password".to_string()))?;
     let host = if matches.is_present("dev") {
         "http://darklang.localhost:8000"
     } else {
