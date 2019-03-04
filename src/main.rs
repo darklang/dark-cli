@@ -140,6 +140,9 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
         len += file.metadata()?.len();
         let filename = file
             .path()
+            // we want to leave 'some' nesting in place, and just strip the prefix.  So if build
+            // contains /static/foo.md, and we tell this binary to upload build, we want the name
+            // attached to that file to be static/foo.md so it is properly nested in gcloud
             .strip_prefix(paths.to_string())
             .or_else(|_| Err(DarkError::MissingFilename()))?
             .to_string_lossy()
