@@ -234,11 +234,17 @@ fn main() -> Result<(), DarkError> {
 
     let (form, size) = form_body(&paths.to_string())?;
 
-    // TODO: what is that size?
-    println!("Going to attempt to upload files totalling {}; note that this may error if your request is over a certain size; ask Dark for help with that.", size.file_size(options::DECIMAL)?);
+    println!(
+        "Going to attempt to upload files totalling {}.",
+        size.file_size(options::DECIMAL)?
+    );
 
     let requri = format!("{}/api/{}/static_assets", host, canvas);
-    let req = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .gzip(true)
+        .timeout(None)
+        .build()?;
+    let req = client
         .post(&requri)
         .header("cookie", cookie)
         .header("x-csrf-token", csrf);
