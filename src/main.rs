@@ -135,20 +135,13 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     let mut len = 0;
 
-    let mut form = multipart::Form::new();
+    let mut form = multipart::Form::new().percent_encode_noop();
     for file in files {
         len += file.metadata()?.len();
-        println!(
-            "File: {}",
-            file.path()
-                .file_name()
-                .ok_or(DarkError::MissingFilename())?
-                .to_string_lossy()
-        );
         let filename = file
             .path()
-            .file_name()
-            .ok_or(DarkError::MissingFilename())?
+            .strip_prefix(paths.to_string())
+            .or_else(|_| Err(DarkError::MissingFilename()))?
             .to_string_lossy()
             .to_string();
         form = form.file(filename, file.path())?;
