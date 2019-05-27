@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Ian Smith <ismith@darklang.com>"]
 
 [dependencies]
-clap = "2.31.2"
+clap = "2.33.0"
 walkdir = "2"
 reqwest = "0.9.11"
 base64 = "0.10.1"
