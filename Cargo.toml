@@ -1,6 +1,6 @@
 [package]
 name = "dark-cli"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Ian Smith <ismith@darklang.com>"]
 
 [dependencies]
@@ -14,6 +14,7 @@ humansize = "1.1.0"
 failure = "0.1.5"
 serde = "1.0.88"
 openssl-sys = { version = "*", optional = true }
+netrc = "0.4.1"
 
 [target.x86_64-unknown-linux-gnu]
 [target.x86_64-unknown-linux-musl]
