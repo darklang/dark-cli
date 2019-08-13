@@ -1,3 +1,7 @@
 target
 osxcross-with-clang.tar.gz
 osxcross/*.dmg
+SDK
+bin
+libexec
+toolchain.cmake
