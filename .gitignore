@@ -5,3 +5,6 @@ SDK
 bin
 libexec
 toolchain.cmake
+include
+lib
+share
