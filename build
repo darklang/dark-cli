@@ -23,12 +23,17 @@ set -x
 if [[ ! -z "${DEV}" ]]; then
     case "$(uname)" in
         Linux*) cargo build --target x86_64-unknown-linux-gnu ${RELEASE};;
-        Darwin*) PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE} ;;
+        Darwin*) PATH=./bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE} ;;
         *) echo "Unknown uname '$(uname)'."; exit 1;;
     esac
 else
   cargo build --target x86_64-unknown-linux-gnu ${RELEASE}
-  PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE}
+  if [[ -f ./bin/x86_64-apple-darwin15-clang ]]; then
+      export PATH=./bin:$PATH
+  else
+      export PATH=../../target/bin:$PATH
+  fi
+  cargo build --target x86_64-apple-darwin ${RELEASE}
   cargo build --target x86_64-pc-windows-gnu ${RELEASE}
   cargo build --target x86_64-unknown-linux-musl --features vendored ${RELEASE}
 fi
