@@ -3,10 +3,15 @@
 set -euo pipefail
 
 RELEASE=""
+DEV=""
 for i in "$@"; do
     case "${i}" in
         --release)
         RELEASE="${i}"
+        shift
+        ;;
+      --dev)
+        DEV="${i}"
         shift
         ;;
     esac
@@ -14,7 +19,16 @@ done
 
 
 set -x
-cargo build --target x86_64-unknown-linux-gnu ${RELEASE}
-PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE}
-cargo build --target x86_64-pc-windows-gnu ${RELEASE}
-cargo build --target x86_64-unknown-linux-musl --features vendored ${RELEASE}
+
+if [[ ! -z "${DEV}" ]]; then
+    case "$(uname)" in
+        Linux*) cargo build --target x86_64-unknown-linux-gnu ${RELEASE};;
+        Darwin*) PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE} ;;
+        *) echo "Unknown uname '$(uname)'."; exit 1;;
+    esac
+else
+  cargo build --target x86_64-unknown-linux-gnu ${RELEASE}
+  PATH=../../target/bin:$PATH cargo build --target x86_64-apple-darwin ${RELEASE}
+  cargo build --target x86_64-pc-windows-gnu ${RELEASE}
+  cargo build --target x86_64-unknown-linux-musl --features vendored ${RELEASE}
+fi
