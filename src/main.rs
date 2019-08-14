@@ -1,5 +1,7 @@
 extern crate clap;
+extern crate http;
 extern crate humansize;
+extern crate netrc;
 extern crate regex;
 extern crate reqwest;
 extern crate serde;
@@ -13,6 +15,13 @@ use humansize::{file_size_opts as options, FileSize};
 use regex::Regex;
 use reqwest::{multipart, StatusCode};
 use walkdir::WalkDir;
+
+use http::Uri;
+use netrc::Netrc;
+use std::env;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
 
 #[derive(Debug, Fail)]
 enum DarkError {
@@ -124,7 +133,7 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
         .split(' ')
         .map(WalkDir::new)
         .flat_map(|entry| entry.follow_links(true).into_iter())
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|entry| entry.file_type().is_file())
         .peekable();
 
@@ -161,14 +170,14 @@ fn main() -> Result<(), DarkError> {
         .arg(
             Arg::with_name("user")
                 .long("user")
-                .required(true)
+                .required(false)
                 .takes_value(true)
                 .help("Your dark username"),
         )
         .arg(
             Arg::with_name("password")
                 .long("password")
-                .required(true)
+                .required(false)
                 .takes_value(true)
                 .requires("user")
                 .help("Your dark password"),
@@ -208,18 +217,104 @@ fn main() -> Result<(), DarkError> {
     let canvas = matches
         .value_of("canvas")
         .ok_or_else(|| DarkError::MissingArgument("canvas".to_string()))?;
-    let user = matches
-        .value_of("user")
-        .ok_or_else(|| DarkError::MissingArgument("user".to_string()))?;
-    let password = matches
-        .value_of("password")
-        .ok_or_else(|| DarkError::MissingArgument("password".to_string()))?;
+    let user = matches.value_of("user");
+    let password = matches.value_of("password");
     let host = if matches.is_present("dev") {
         "http://darklang.localhost:8000"
     } else {
         "https://darklang.com"
     };
     let dryrun = matches.is_present("dry-run");
+
+    // first we check for username/password in command line flags
+    let creds: Option<(String, String)> = match (user, password) {
+        (Some(user), Some(password)) => {
+            println!("Using credentials from flags.");
+            Some((user.to_string(), password.to_string()))
+        }
+        (_, _) => None,
+    }
+    .or_else(|| {
+        // then we check for env vars $DARK_CLI_USERNAME and $DARK_CLI_PASSWORD
+        match (env::var("DARK_CLI_USERNAME"), env::var("DARK_CLI_PASSWORD")) {
+            (Ok(username), Ok(password)) => {
+                println!("Using credentials from env vars.");
+                Some((username, password))
+            }
+            _ => None,
+        }
+    })
+    .or_else(|| {
+        // then we try netrc, via (in order):
+        // - the file at $NETRC
+        // - the file at ./.netrc
+        // - the file at ~/.netrc
+        let netrc_home = dirs::home_dir()
+            .and_then(|mut netrc_home| {
+                netrc_home.push(".netrc");
+                Some(netrc_home)
+            })
+            .unwrap_or_default();
+
+        let netrc_env = env::var("NETRC")
+            .and_then(|e| Ok(e.to_string()))
+            .unwrap_or_default();
+
+        let netrc_path: &str = if Path::new(&netrc_env).is_file() {
+            netrc_env.as_str()
+        } else if Path::new("./.netrc").is_file() {
+            "./.netrc"
+        } else if Path::new(&netrc_home).is_file() {
+            netrc_home.to_str().unwrap_or_default()
+        } else {
+            ""
+        };
+        let netrc = File::open(netrc_path)
+            .ok()
+            .map(BufReader::new)
+            .and_then(|bufr| Netrc::parse(bufr).ok());
+
+        let netrc_machine: Option<String> = host
+            .parse::<Uri>()
+            .and_then(|uri| {
+                Ok(match uri.host() {
+                    Some(h) => h.to_owned(),
+                    _ => "".to_owned(),
+                })
+            })
+            .ok()
+            .map(|s| s.to_string());
+
+        let netrc_creds: Option<(String, String)> = match (netrc, netrc_machine) {
+            (Some(netrc), Some(netrc_machine)) => netrc
+                .hosts
+                .iter()
+                .find(|(k, _nm)| *k == netrc_machine)
+                .map(|(_, nm)| {
+                    (
+                        nm.login.clone(),
+                        nm.password.as_ref().unwrap_or(&"".to_string()).clone(),
+                    )
+                }),
+            (_, _) => None,
+        };
+
+        match netrc_creds {
+            Some(_) => {
+                println!("Using credentials from netrc at {}.", netrc_path);
+                netrc_creds
+            }
+            _ => None,
+        }
+    });
+
+    let (user, password) = match creds {
+        Some(c) => c,
+        None => {
+            println!("No credentials set for {}.", host);
+            std::process::exit(1)
+        }
+    };
 
     let (cookie, csrf) = cookie_and_csrf(
         user.to_string(),
