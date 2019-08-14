@@ -167,6 +167,7 @@ fn main() -> Result<(), DarkError> {
         .version("0.1.0")
         .author("Ian Smith <ismith@darklang.com")
         .about("dark cli")
+        .after_help("You can set credentials three ways:\n  --user and --password flags\n  env vars DARK_CLI_USER and DARK_CLI_PASSWORD\n  a netrc file at any of $NETRC, ./.netrc, or ~/.netrc\n    (see https://linux.die.net/man/5/netrc for format)")
         .arg(
             Arg::with_name("user")
                 .long("user")
@@ -235,8 +236,8 @@ fn main() -> Result<(), DarkError> {
         (_, _) => None,
     }
     .or_else(|| {
-        // then we check for env vars $DARK_CLI_USERNAME and $DARK_CLI_PASSWORD
-        match (env::var("DARK_CLI_USERNAME"), env::var("DARK_CLI_PASSWORD")) {
+        // then we check for env vars $DARK_CLI_USER and $DARK_CLI_PASSWORD
+        match (env::var("DARK_CLI_USER"), env::var("DARK_CLI_PASSWORD")) {
             (Ok(username), Ok(password)) => {
                 println!("Using credentials from env vars.");
                 Some((username, password))
