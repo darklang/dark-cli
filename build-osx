@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -euo pipefail
+
+RELEASE=""
+DEV=""
+for i in "$@"; do
+    case "${i}" in
+        --release)
+        RELEASE="${i}"
+        shift
+        ;;
+    esac
+done
+
+
+set -x
+
+if [[ ! -f $(which x86_64-apple-darwin15-clang) ]]; then
+    echo "No x86_64-apple-darwin15-clang found; you probably want to symlink to /usr/bin/clang"
+    exit 1
+fi
+
+cargo build --target x86_64-apple-darwin ${RELEASE}
