@@ -162,9 +162,11 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
     Ok((form, len))
 }
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 fn main() -> Result<(), DarkError> {
     let matches = App::new("dark")
-        .version("0.1.0")
+        .version(VERSION)
         .author("Ian Smith <ismith@darklang.com")
         .about("dark cli")
         .after_help("You can set credentials three ways:\n  --user and --password flags\n  env vars DARK_CLI_USER and DARK_CLI_PASSWORD\n  a netrc file at any of $NETRC, ./.netrc, or ~/.netrc\n    (see https://linux.die.net/man/5/netrc for format)")
