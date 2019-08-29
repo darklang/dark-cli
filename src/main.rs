@@ -171,6 +171,12 @@ fn main() -> Result<(), DarkError> {
         .about("dark cli")
         .after_help("You can set credentials three ways:\n  --user and --password flags\n  env vars DARK_CLI_USER and DARK_CLI_PASSWORD\n  a netrc file at any of $NETRC, ./.netrc, or ~/.netrc\n    (see https://linux.die.net/man/5/netrc for format)")
         .arg(
+            Arg::with_name("version")
+                .long("version")
+                .required(false)
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("user")
                 .long("user")
                 .required(false)
