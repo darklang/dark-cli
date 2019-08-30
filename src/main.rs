@@ -13,6 +13,7 @@ extern crate failure;
 use clap::{App, Arg};
 use humansize::{file_size_opts as options, FileSize};
 use regex::Regex;
+use reqwest::header::{SET_COOKIE, USER_AGENT};
 use reqwest::{multipart, StatusCode};
 use walkdir::WalkDir;
 
@@ -97,6 +98,7 @@ fn cookie_and_csrf(
     let requri = format!("{}/a/{}", host, canvas);
     let mut authresp = match reqwest::Client::new()
         .get(&requri)
+        .header(USER_AGENT, format!("{}/{}", PKG_NAME, VERSION))
         .basic_auth(user, Some(password))
         .send()
     {
@@ -113,7 +115,7 @@ fn cookie_and_csrf(
 
     let cookie: String = authresp
         .headers()
-        .get(reqwest::header::SET_COOKIE)
+        .get(SET_COOKIE)
         .ok_or(DarkError::MissingSetCookie())?
         .to_str()?
         .to_string();
@@ -163,6 +165,7 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn main() -> Result<(), DarkError> {
     let matches = App::new("dark")
@@ -341,7 +344,8 @@ fn main() -> Result<(), DarkError> {
     let req = client
         .post(&requri)
         .header("cookie", cookie)
-        .header("x-csrf-token", csrf);
+        .header("x-csrf-token", csrf)
+        .header(USER_AGENT, format!("{}/{}", PKG_NAME, VERSION));
 
     if dryrun {
         println!("{:#?}", req);
