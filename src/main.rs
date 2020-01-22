@@ -40,6 +40,11 @@ enum DarkError {
     Regex(),
     #[fail(display = "No SET-COOKIE header received.")]
     MissingSetCookie(),
+    #[fail(
+        display = "We don't support uploading a single file - a deploy is a directory of files. If you really want this, put {} in a directory and try again.",
+        _0
+    )]
+    SingleFileUnsupported(String),
     #[fail(display = "Unknown failure")]
     Unknown,
 }
@@ -131,6 +136,18 @@ fn cookie_and_csrf(
 }
 
 fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
+    if Path::new(paths).is_file() {
+        let err = DarkError::SingleFileUnsupported(paths.to_string());
+        // fn main doesn't pretty-print the error, so do it here
+        // https://crates.io/crates/exitfailure might wrap this nicely, if we wanted to make all
+        // errors pretty-print this way
+        println!("Error: {}", err);
+        return Err(err);
+    }
+
+    // Note: contrary to our use of split(' ').map() here, we don't actually support multiple paths
+    // per upload. If we wanted to support that, we'd have to be a bit more clever so we can do the
+    // strip_prefix thing below.
     let mut files = paths
         .split(' ')
         .map(WalkDir::new)
@@ -141,20 +158,28 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
 
     // "is_empty()"
     if files.peek().is_none() {
+        println!("FILES IS EMPTY");
         return Err(DarkError::NoFilesFound(paths.to_string()));
     };
 
     let mut len = 0;
 
+    let prefix = if Path::new(paths).is_file() {
+        Path::new(paths).parent().unwrap().to_str().unwrap()
+    } else {
+        paths
+    };
+
     let mut form = multipart::Form::new().percent_encode_noop();
     for file in files {
+        println!("FILE: {}", file.path().to_str().unwrap());
         len += file.metadata()?.len();
         let filename = file
             .path()
             // we want to leave 'some' nesting in place, and just strip the prefix.  So if build
             // contains /static/foo.md, and we tell this binary to upload build, we want the name
             // attached to that file to be static/foo.md so it is properly nested in gcloud
-            .strip_prefix(paths.to_string())
+            .strip_prefix(prefix)
             .or_else(|_| Err(DarkError::MissingFilename()))?
             .to_string_lossy()
             .to_string();
