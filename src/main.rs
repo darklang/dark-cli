@@ -135,9 +135,9 @@ fn cookie_and_csrf(
     Ok((cookie, csrf))
 }
 
-fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
-    if Path::new(paths).is_file() {
-        let err = DarkError::SingleFileUnsupported(paths.to_string());
+fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
+    if Path::new(dir).is_file() {
+        let err = DarkError::SingleFileUnsupported(dir.to_string());
         // fn main doesn't pretty-print the error, so do it here
         // https://crates.io/crates/exitfailure might wrap this nicely, if we wanted to make all
         // errors pretty-print this way
@@ -145,13 +145,9 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
         return Err(err);
     }
 
-    // Note: contrary to our use of split(' ').map() here, we don't actually support multiple paths
-    // per upload. If we wanted to support that, we'd have to be a bit more clever so we can do the
-    // strip_prefix thing below.
-    let mut files = paths
-        .split(' ')
-        .map(WalkDir::new)
-        .flat_map(|entry| entry.follow_links(true).into_iter())
+    let mut files = WalkDir::new(dir)
+        .follow_links(true)
+        .into_iter()
         .filter_map(std::result::Result::ok)
         .filter(|entry| entry.file_type().is_file())
         .peekable();
@@ -159,27 +155,20 @@ fn form_body(paths: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> 
     // "is_empty()"
     if files.peek().is_none() {
         println!("FILES IS EMPTY");
-        return Err(DarkError::NoFilesFound(paths.to_string()));
+        return Err(DarkError::NoFilesFound(dir.to_string()));
     };
 
     let mut len = 0;
 
-    let prefix = if Path::new(paths).is_file() {
-        Path::new(paths).parent().unwrap().to_str().unwrap()
-    } else {
-        paths
-    };
-
     let mut form = multipart::Form::new().percent_encode_noop();
     for file in files {
-        println!("FILE: {}", file.path().to_str().unwrap());
         len += file.metadata()?.len();
         let filename = file
             .path()
             // we want to leave 'some' nesting in place, and just strip the prefix.  So if build
             // contains /static/foo.md, and we tell this binary to upload build, we want the name
             // attached to that file to be static/foo.md so it is properly nested in gcloud
-            .strip_prefix(prefix)
+            .strip_prefix(dir)
             .or_else(|_| Err(DarkError::MissingFilename()))?
             .to_string_lossy()
             .to_string();
@@ -221,10 +210,10 @@ fn main() -> Result<(), DarkError> {
                 .help("Your canvas"),
         )
         .arg(
-            Arg::with_name("paths")
+            Arg::with_name("dir")
                 .required(true)
                 .takes_value(true)
-                .help("files to upload"),
+                .help("directory to upload"),
         )
         .arg(
             Arg::with_name("dry-run")
@@ -242,9 +231,9 @@ fn main() -> Result<(), DarkError> {
         )
         .get_matches();
 
-    let paths = matches
-        .value_of("paths")
-        .ok_or_else(|| DarkError::MissingArgument("paths".to_string()))?;
+    let dir = matches
+        .value_of("dir")
+        .ok_or_else(|| DarkError::MissingArgument("dir".to_string()))?;
     let canvas = matches
         .value_of("canvas")
         .ok_or_else(|| DarkError::MissingArgument("canvas".to_string()))?;
@@ -354,7 +343,7 @@ fn main() -> Result<(), DarkError> {
         &canvas.to_string(),
     )?;
 
-    let (form, size) = form_body(&paths.to_string())?;
+    let (form, size) = form_body(&dir.to_string())?;
 
     println!(
         "Going to attempt to upload files totalling {}.",
