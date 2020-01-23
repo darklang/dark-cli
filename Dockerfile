@@ -1,4 +1,4 @@
-FROM circleci/rust:1.34.2-stretch
+FROM circleci/rust:1.40.0-stretch
 
 ENV DEBIAN_FRONTEND noninteractive
 
