@@ -276,9 +276,7 @@ fn main() -> Result<(), DarkError> {
             })
             .unwrap_or_default();
 
-        let netrc_env = env::var("NETRC")
-            .and_then(|e| Ok(e.to_string()))
-            .unwrap_or_default();
+        let netrc_env = env::var("NETRC").unwrap_or_default();
 
         let netrc_path: &str = if Path::new(&netrc_env).is_file() {
             netrc_env.as_str()
@@ -302,8 +300,7 @@ fn main() -> Result<(), DarkError> {
                     _ => "".to_owned(),
                 })
             })
-            .ok()
-            .map(|s| s.to_string());
+            .ok();
 
         let netrc_creds: Option<(String, String)> = match (netrc, netrc_machine) {
             (Some(netrc), Some(netrc_machine)) => netrc
@@ -336,12 +333,7 @@ fn main() -> Result<(), DarkError> {
         }
     };
 
-    let (cookie, csrf) = cookie_and_csrf(
-        user.to_string(),
-        password.to_string(),
-        &host.to_string(),
-        &canvas.to_string(),
-    )?;
+    let (cookie, csrf) = cookie_and_csrf(user, password, &host.to_string(), &canvas.to_string())?;
 
     let (form, size) = form_body(&dir.to_string())?;
 
