@@ -154,7 +154,6 @@ fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
 
     // "is_empty()"
     if files.peek().is_none() {
-        println!("FILES IS EMPTY");
         return Err(DarkError::NoFilesFound(dir.to_string()));
     };
 
