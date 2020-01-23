@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# For now, this script is to be run manually; adapting it to run in CircleCI
+# would only require a few steps:
+# - get the binaries into the right place to be found by this script
+# - install gsutil and have write creds to gs://dark-cli
+# - add a master-only deploy step to .circleci/config.yml, like we have for
+#   darklang/dark
+#
+# We already check for "this version string is already in gs://dark-cli" and
+# fail if that happens, so if you forgot to bump the version, your deploy would
+# fail and you'd get a message to that effect.
+
+set -eou pipefail
+set -x
+
+if ! [[ -f dark-cli-apple && -f dark-cli-linux && -f dark-cli.exe ]]; then
+  echo "You must have all three of dark-cli-apple, dark-cli-linux, and dark-cli.exe in your working directory."
+  echo
+  echo "You can get them from the circleci build at"
+  echo "https://app.circleci.com/jobs/github/darklang/dark-cli/<job
+  number>/artifacts"
+  echo "Note: 'build' has linux + Windows artifacts, 'build-osx' has the OSX artifact."
+  exit 1
+fi
+
+existing_versions=$(gsutil ls gs://dark-cli \
+  | grep -o 'dark-cli\/.*\/' \
+  | grep -v latest \
+  | awk -F/ '{ print $2 }')
+
+if [[ $(uname -s) == "Darwin" ]]; then
+  binary=dark-cli-apple
+else
+  binary=dark-cli-linux
+fi
+
+chmod u+x $binary
+new_version=$("./$binary" --version | awk '{ print $2 }')
+
+# This will also fail (exit) if new_version is the empty string
+if ( grep "$new_version" <(echo "$existing_versions") ); then
+  "You already have an uploaded dark-cli version ${new_version}."
+  exit 1
+fi
+
+# Upload the new binaries to both /<version>/ and /latest/
+for file in dark-cli-apple dark-cli-linux dark-cli.exe; do
+  echo "Uploading ${file} version ${new_version}..."
+  gsutil cp "$file" "gs://dark-cli/${new_version}/$file"
+  gsutil cp "$file" "gs://dark-cli/latest/$file"
+done
+
+# We don't need to edit index.html, it only points to the binaries under /latest
