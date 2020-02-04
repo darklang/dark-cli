@@ -360,6 +360,7 @@ fn main() -> Result<(), DarkError> {
             .multipart(form)
             .send()
             .or_else(|error| Err(DarkError::Upload(error)))?;
+        println!("Upload succeeded!");
         println!("{}", resp.text()?);
     }
 
