@@ -2,9 +2,9 @@ extern crate clap;
 extern crate http;
 extern crate humansize;
 extern crate netrc;
-extern crate regex;
 extern crate reqwest;
 extern crate serde;
+extern crate serde_json;
 extern crate walkdir; // could probs replace this with std::fs
 
 #[macro_use]
@@ -12,8 +12,7 @@ extern crate failure;
 
 use clap::{App, Arg};
 use humansize::{file_size_opts as options, FileSize};
-use regex::Regex;
-use reqwest::header::{SET_COOKIE, USER_AGENT};
+use reqwest::header::{CONTENT_TYPE, USER_AGENT};
 use reqwest::{multipart, StatusCode};
 use walkdir::WalkDir;
 
@@ -23,6 +22,8 @@ use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+
+use serde::Deserialize;
 
 #[derive(Debug, Fail)]
 enum DarkError {
@@ -36,10 +37,6 @@ enum DarkError {
     MissingArgument(String),
     #[fail(display = "Missing filename. (Can't happen.)")]
     MissingFilename(),
-    #[fail(display = "Regex error.")]
-    Regex(),
-    #[fail(display = "No SET-COOKIE header received.")]
-    MissingSetCookie(),
     #[fail(
         display = "We don't support uploading a single file - a deploy is a directory of files. If you really want this, put {} in a directory and try again.",
         _0
@@ -47,12 +44,6 @@ enum DarkError {
     SingleFileUnsupported(String),
     #[fail(display = "Unknown failure")]
     Unknown,
-}
-
-impl From<regex::Error> for DarkError {
-    fn from(_err: regex::Error) -> Self {
-        DarkError::Unknown
-    }
 }
 
 impl From<reqwest::Error> for DarkError {
@@ -94,17 +85,23 @@ impl From<walkdir::Error> for DarkError {
     }
 }
 
-fn cookie_and_csrf(
-    user: String,
-    password: String,
-    host: &str,
-    canvas: &str,
-) -> Result<(String, String), DarkError> {
-    let requri = format!("{}/a/{}", host, canvas);
+#[derive(Deserialize, Debug)]
+struct CookieAndCsrf {
+    #[serde(rename = "sessionKey")]
+    cookie: String,
+    #[serde(rename = "csrfToken")]
+    csrf: String,
+    msg: Option<String>,
+}
+
+fn cookie_and_csrf(user: String, password: String) -> Result<CookieAndCsrf, DarkError> {
+    let requri = "https://login.darklang.com/dark-cli";
     let mut authresp = match reqwest::Client::new()
-        .get(&requri)
+        .post(requri)
         .header(USER_AGENT, format!("{}/{}", PKG_NAME, VERSION))
+        .header(CONTENT_TYPE, "application/json")
         .basic_auth(user, Some(password))
+        .body("")
         .send()
     {
         Ok(r) => r,
@@ -117,22 +114,24 @@ fn cookie_and_csrf(
             return Err(DarkError::Auth(authresp.status().as_u16()));
         }
     }
+    authresp
+        .json::<CookieAndCsrf>()
+        .map(|r| {
+            #[cfg(debug_assertions)]
+            dbg!("Cookie and csrf: {:?}", &r);
+            r
+        })
+        .map(|r| {
+            // Display this message, if it's set. Intent: the backend can detect via useragent if
+            // you're out of date, and suggest you download the latest version.
+            match &r.msg {
+                None => (),
+                Some(msg) => println!("{}", msg),
+            };
 
-    let cookie: String = authresp
-        .headers()
-        .get(SET_COOKIE)
-        .ok_or(DarkError::MissingSetCookie())?
-        .to_str()?
-        .to_string();
-
-    let csrf_re: Regex = Regex::new("const csrfToken = \"([^\"]*)\";")?;
-    let csrf: String = csrf_re
-        .captures_iter(&authresp.text()?)
-        .next()
-        .ok_or(DarkError::Regex())?[1]
-        .to_string();
-
-    Ok((cookie, csrf))
+            r
+        })
+        .map_err(|error| panic!("Error authing: {:?}", error))
 }
 
 fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
@@ -332,7 +331,11 @@ fn main() -> Result<(), DarkError> {
         }
     };
 
-    let (cookie, csrf) = cookie_and_csrf(user, password, &host.to_string(), &canvas.to_string())?;
+    let CookieAndCsrf {
+        cookie,
+        csrf,
+        msg: _msg,
+    } = cookie_and_csrf(user, password)?;
 
     let (form, size) = form_body(&dir.to_string())?;
 
@@ -348,7 +351,13 @@ fn main() -> Result<(), DarkError> {
         .build()?;
     let req = client
         .post(&requri)
-        .header("cookie", cookie)
+        .header(
+            "cookie",
+            format!(
+                "__session={}; Max-Age=604800; domain=darklang.com; path=/; secure; httponly",
+                cookie
+            ),
+        )
         .header("x-csrf-token", csrf)
         .header(USER_AGENT, format!("{}/{}", PKG_NAME, VERSION));
 
@@ -356,10 +365,10 @@ fn main() -> Result<(), DarkError> {
         println!("{:#?}", req);
         println!("{:#?}", form);
     } else {
-        let mut resp = req
-            .multipart(form)
-            .send()
-            .or_else(|error| Err(DarkError::Upload(error)))?;
+        let mut resp = req.multipart(form).send().or_else(|error| {
+            println!("Err: {:?}", error);
+            Err(DarkError::Upload(error))
+        })?;
         println!("Upload succeeded!");
         println!("{}", resp.text()?);
     }
