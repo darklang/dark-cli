@@ -1,6 +1,6 @@
 [package]
 name = "dark-cli"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Ian Smith <ismith@darklang.com>"]
 
 [dependencies]
@@ -12,7 +12,8 @@ hyper = "0.12.14"
 regex = "1"
 humansize = "1.1.0"
 failure = "0.1.5"
-serde = "1.0.88"
+serde = { version = "1.0.88", features = ["derive"] }
+serde_json = "*"
 openssl-sys = { version = "*", optional = true }
 netrc = "0.4.1"
 http = "0.1.18"
