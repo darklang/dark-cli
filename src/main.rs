@@ -91,6 +91,7 @@ struct CookieAndCsrf {
     cookie: String,
     #[serde(rename = "csrfToken")]
     csrf: String,
+    msg: Option<String>,
 }
 
 fn cookie_and_csrf(user: String, password: String) -> Result<CookieAndCsrf, DarkError> {
@@ -118,6 +119,16 @@ fn cookie_and_csrf(user: String, password: String) -> Result<CookieAndCsrf, Dark
         .map(|r| {
             #[cfg(debug_assertions)]
             dbg!("Cookie and csrf: {:?}", &r);
+            r
+        })
+        .map(|r| {
+            // Display this message, if it's set. Intent: the backend can detect via useragent if
+            // you're out of date, and suggest you download the latest version.
+            match &r.msg {
+                None => (),
+                Some(msg) => println!("{}", msg),
+            };
+
             r
         })
         .map_err(|error| panic!("Error authing: {:?}", error))
@@ -320,7 +331,11 @@ fn main() -> Result<(), DarkError> {
         }
     };
 
-    let CookieAndCsrf { cookie, csrf } = cookie_and_csrf(user, password)?;
+    let CookieAndCsrf {
+        cookie,
+        csrf,
+        msg: _msg,
+    } = cookie_and_csrf(user, password)?;
 
     let (form, size) = form_body(&dir.to_string())?;
 
