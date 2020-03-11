@@ -386,7 +386,7 @@ fn app() -> Result<(), DarkError> {
                     let exec_id = response
                         .headers()
                         .get("X-Darklang-Execution-ID")
-                        .map(|header| header.to_str().unwrap_or("<Unknown>"))
+                        .and_then(|header| header.to_str().ok())
                         .unwrap_or("<Unknown>")
                         .to_string();
                     Err(DarkError::Non200Response(
