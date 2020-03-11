@@ -390,7 +390,7 @@ fn app() -> Result<(), DarkError> {
                         .unwrap_or("<Unknown>")
                         .to_string();
                     Err(DarkError::Non200Response(
-                        response.text()?,
+                        response.text().unwrap_or("<Undecodable>".to_string()),
                         response.status().as_u16(),
                         exec_id,
                     ))
