@@ -399,7 +399,7 @@ fn app() -> Result<(), DarkError> {
     }
 }
 
-fn main() -> () {
+fn main() {
     match app() {
         Ok(()) => (),
         Err(err) => {
