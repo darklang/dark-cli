@@ -29,6 +29,11 @@ use serde::Deserialize;
 enum DarkError {
     #[fail(display = "Failure to auth: {}", _0)]
     Auth(u16),
+    #[fail(
+        display = "Upload error:\n\tStatus: {}\n\tExecution ID: {}\n\n\t{}",
+        _1, _2, _0
+    )]
+    Non200Response(String, u16, String),
     #[fail(display = "No files found in {}.", _0)]
     NoFilesFound(String),
     #[fail(display = "Upload failure")]
@@ -179,7 +184,7 @@ fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
-fn main() -> Result<(), DarkError> {
+fn app() -> Result<(), DarkError> {
     let matches = App::new("dark")
         .version(VERSION)
         .author("Ian Smith <ismith@darklang.com")
@@ -364,14 +369,42 @@ fn main() -> Result<(), DarkError> {
     if dryrun {
         println!("{:#?}", req);
         println!("{:#?}", form);
+        Ok(())
     } else {
-        let mut resp = req.multipart(form).send().or_else(|error| {
-            println!("Err: {:?}", error);
-            Err(DarkError::Upload(error))
-        })?;
-        println!("Upload succeeded!");
-        println!("{}", resp.text()?);
+        req.multipart(form)
+            .send()
+            .or_else(|error| {
+                println!("Err: {:?}", error);
+                Err(DarkError::Upload(error))
+            })
+            .and_then(|mut response| match response.status() {
+                StatusCode::OK => {
+                    println!("Upload succeeded!");
+                    Ok(())
+                }
+                _ => {
+                    let exec_id = response
+                        .headers()
+                        .get("X-Darklang-Execution-ID")
+                        .map(|header| header.to_str().unwrap_or("<Unknown>"))
+                        .unwrap_or("<Unknown>")
+                        .to_string();
+                    Err(DarkError::Non200Response(
+                        response.text()?,
+                        response.status().as_u16(),
+                        exec_id,
+                    ))
+                }
+            })
     }
+}
 
-    Ok(())
+fn main() -> () {
+    match app() {
+        Ok(()) => (),
+        Err(err) => {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        }
+    }
 }
