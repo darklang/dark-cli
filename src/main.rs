@@ -2,6 +2,7 @@ extern crate clap;
 extern crate http;
 extern crate humansize;
 extern crate netrc;
+extern crate path_slash;
 extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
@@ -140,6 +141,8 @@ fn cookie_and_csrf(user: String, password: String) -> Result<CookieAndCsrf, Dark
 }
 
 fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
+    use path_slash::PathExt;
+
     if Path::new(dir).is_file() {
         let err = DarkError::SingleFileUnsupported(dir.to_string());
         // fn main doesn't pretty-print the error, so do it here
@@ -173,8 +176,8 @@ fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
             // attached to that file to be static/foo.md so it is properly nested in gcloud
             .strip_prefix(dir)
             .or_else(|_| Err(DarkError::MissingFilename()))?
-            .to_string_lossy()
-            .to_string();
+            // Normalize paths to use forward slash (including on Windows):
+            .to_slash_lossy();
         form = form.file(filename, file.path())?;
     }
 
