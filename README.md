@@ -7,7 +7,7 @@ We currently do not automate deploys when merging to master. Here's how to deplo
     ```
     curl https://sdk.cloud.google.com | bash
     ```
-    You also need permissions to upload to the dark-cli bucket in google cloud storage.
+    You also need permissions to upload to the dark-cli bucket in google cloud storage, and gcloud creds on your laptop. (If you use `gcp-authorize-kubectl` in the dark repo, you already have these creds; if not, run `gcloud init` to launch a browser and log in. This is a one-time setup step, does not need to be done each time.)
 1. Make sure to bump the version number in `Cargo.toml`
 2. Merge the branch into master and wait for CI to finish building.
 3. Open the CI build job and the build-osx job (linked via the green circle next to the merge commit in github)
