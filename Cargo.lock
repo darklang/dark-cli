@@ -263,7 +263,7 @@ dependencies = [
 
 [[package]]
 name = "dark-cli"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
