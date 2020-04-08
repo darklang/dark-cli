@@ -29,7 +29,7 @@ use serde::Deserialize;
 #[derive(Debug, Fail)]
 enum DarkError {
     #[fail(
-        display = "Failure to auth: {}.\nIf you're sure your password is correct, and are using --password, you might want to wrap it in '' to avoid your shell interpreting it.\nPutting your username and password in ~/.netrc - format documented at https://ec.haxx.se/usingcurl/usingcurl-netrc - may also be a more robust option.",
+        display = "Failed to authenticate with Dark (Received {} from server).\nIf you're sure your password is correct, and you used --password, try wrapping your password in single-quotes ('') rather than double-quotes (\"\") to avoid your shell interpreting it.\nPutting your username and password in ~/.netrc - format documented at https://ec.haxx.se/usingcurl/usingcurl-netrc - may also be a more robust option. If you're still encountering issues, please reach out in #bugs in the Dark Community Slack or email feedback@darklang.com",
         _0
     )]
     Auth(u16),
