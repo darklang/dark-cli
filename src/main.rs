@@ -28,7 +28,10 @@ use serde::Deserialize;
 
 #[derive(Debug, Fail)]
 enum DarkError {
-    #[fail(display = "Failure to auth: {}", _0)]
+    #[fail(
+        display = "Failed to authenticate with Dark (Received {} from server).\nIf you're sure your password is correct, and you used --password, try wrapping your password in single-quotes ('') rather than double-quotes (\"\") to avoid your shell interpreting it.\nPutting your username and password in ~/.netrc - format documented at https://ec.haxx.se/usingcurl/usingcurl-netrc - may also be a more robust option. If you're still encountering issues, please reach out in #bugs in the Dark Community Slack or email feedback@darklang.com",
+        _0
+    )]
     Auth(u16),
     #[fail(
         display = "Upload error:\n\tStatus: {}\n\tExecution ID: {}\n\n\t{}",
@@ -192,7 +195,7 @@ fn app() -> Result<(), DarkError> {
         .version(VERSION)
         .author("Ian Smith <ismith@darklang.com")
         .about("dark cli")
-        .after_help("You can set credentials three ways:\n  --user and --password flags\n  env vars DARK_CLI_USER and DARK_CLI_PASSWORD\n  a netrc file at any of $NETRC, ./.netrc, or ~/.netrc\n    (see https://linux.die.net/man/5/netrc for format)")
+        .after_help("You can set credentials three ways:\n  --user and --password flags\n  env vars DARK_CLI_USER and DARK_CLI_PASSWORD\n  a netrc file at any of $NETRC, ./.netrc, or ~/.netrc\n    (see https://ec.haxx.se/usingcurl/usingcurl-netrc for format)")
         .arg(
             Arg::with_name("user")
                 .long("user")
