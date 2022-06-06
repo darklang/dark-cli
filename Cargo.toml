@@ -16,7 +16,7 @@ serde = { version = "1.0.88", features = ["derive"] }
 serde_json = "*"
 openssl-sys = { version = "*", optional = true }
 netrc = "0.4.1"
-http = "0.1.18"
+http = "0.1.20"
 dirs = "2.0.2"
 # for Windows directory conversion
 path-slash = "0.x"
