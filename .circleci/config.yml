@@ -28,7 +28,7 @@ jobs:
         - target
   build:
     docker:
-    - image: circleci/rust:1.40.0-stretch
+    - image: cimg/rust:1.61.0
     steps:
     - checkout
     - run:
