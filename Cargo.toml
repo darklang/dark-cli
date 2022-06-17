@@ -1,7 +1,6 @@
 [package]
 name = "dark-cli"
-version = "0.5.3"
-authors = ["Ian Smith <ismith@darklang.com>", "Julian Ceipek <julian@darklang.com>"]
+version = "0.5.4"
 
 [dependencies]
 clap = "2.31.2"
