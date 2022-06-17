@@ -1,5 +1,7 @@
 version: 2.1
 jobs:
+
+
   test:
     docker:
     - image: cimg/rust:1.61.0
@@ -20,6 +22,8 @@ jobs:
         key: v0-cargo-test-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         paths:
         - target
+
+
   build:
     docker:
     - image: cimg/rust:1.61.0
@@ -49,7 +53,9 @@ jobs:
         paths:
         - target
         key: v0-cargo-build-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-  build-osx:
+
+
+  build-osx-x86_64:
     macos:
       xcode: "14.0.0"
     steps:
@@ -80,10 +86,51 @@ jobs:
         paths:
         - target
         key: v0-cargo-build-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+
+
+  build-osx-aarch64:
+    macos:
+      xcode: "14.0.0"
+    steps:
+    - checkout
+    - run:
+        name: Install rustup
+        command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - run:
+        name: Version information
+        command: source ~/.cargo/env; rustc --version; cargo --version; rustup --version
+    - restore_cache:
+        keys:
+        # Note, we're crosscompiling aarch64 from x86_64 here and so we're
+        # explicitly naming the arch in this cache name. 
+        - v0-cargo-build-cache-aarch64-{{ checksum "Cargo.lock" }}
+        - v0-cargo-build-cache-aarch64-
+    - run:
+        name: install-rust-deps
+        command: source ~/.cargo/env; rustup target add aarch64-apple-darwin
+    - run:
+        name: Build all targets
+        command: source ~/.cargo/env; ln -s $(which clang) ~/.cargo/bin/x86_64-apple-darwin15-clang ; ./build-osx-aarch64 --release
+    # For now, don't save this to artifacts, as we're not releasing this.
+    # - run:
+    #     name: prep-artifacts
+    #     command: mkdir artifacts && cp target/x86_64-apple-darwin/release/dark-cli artifacts/dark-cli-apple
+    # - store_artifacts:
+    #     path:
+    #       artifacts
+    - save_cache:
+        paths:
+        - target
+        # Note, we're crosscompiling aarch64 from x86_64 here and so we're
+        # explicitly naming the arch in this cache name. 
+        key: v0-cargo-build-cache-aarch64-{{ checksum "Cargo.lock" }}
+
+
 workflows:
   version: 2.1
   build-and-deploy:
     jobs:
     - test
     - build
-    - build-osx
+    - build-osx-x86_64
+    - build-osx-aarch64
