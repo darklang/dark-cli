@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 jobs:
   test:
     docker:
@@ -10,25 +10,19 @@ jobs:
         command: rustc --version; cargo --version; rustup --version
     - restore_cache:
         keys:
-        - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-        - v2-cargo-cache-{{ arch }}-
+        - v0-cargo-test-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v0-cargo-test-cache-{{ arch }}-
     - run:
         name: install-rust-deps
         command: rustup component add clippy-preview rustfmt-preview
-    - run:
-        name: test
-        command: ./test
-    - persist_to_workspace:
-        root: .
-        paths:
-        - target
+    - run: ./test
     - save_cache:
-        key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        key: v0-cargo-test-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         paths:
         - target
   build:
     docker:
-    - image: circleci/rust:1.40.0-stretch
+    - image: cimg/rust:1.61.0
     steps:
     - checkout
     - run:
@@ -36,21 +30,15 @@ jobs:
         command: rustc --version; cargo --version; rustup --version
     - restore_cache:
         keys:
-        - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-        - v2-cargo-cache-{{ arch }}-
+        - v0-cargo-build-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v0-cargo-build-cache-{{ arch }}-
     - run:
         name: install-apt-deps
-        command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
+        command: sudo apt update && sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-dev musl-tools
     - run:
         name: install-rust-deps
         command: rustup target add x86_64-unknown-linux-musl && rustup target add x86_64-pc-windows-gnu
-    - run:
-        name: Build all targets
-        command: PATH=bin:$PATH ./build --release
-    - persist_to_workspace:
-        root: .
-        paths:
-        - target/
+    - run: ./build --release
     - run:
         name: prep-artifacts
         command: mkdir artifacts && cp target/x86_64-unknown-linux-musl/release/dark-cli artifacts/dark-cli-linux && cp target/x86_64-pc-windows-gnu/release/dark-cli.exe artifacts/dark-cli.exe
@@ -60,7 +48,7 @@ jobs:
     - save_cache:
         paths:
         - target
-        key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        key: v0-cargo-build-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
   build-osx:
     macos:
       xcode: "14.0.0"
@@ -74,18 +62,14 @@ jobs:
         command: source ~/.cargo/env; rustc --version; cargo --version; rustup --version
     - restore_cache:
         keys:
-        - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-        - v2-cargo-cache-{{ arch }}-
+        - v0-cargo-build-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v0-cargo-build-cache-{{ arch }}-
     - run:
         name: install-rust-deps
         command: source ~/.cargo/env; rustup target add x86_64-apple-darwin
     - run:
         name: Build all targets
         command: source ~/.cargo/env; ln -s $(which clang) ~/.cargo/bin/x86_64-apple-darwin15-clang ; ./build-osx --release
-    - persist_to_workspace:
-        root: .
-        paths:
-        - target/
     - run:
         name: prep-artifacts
         command: mkdir artifacts && cp target/x86_64-apple-darwin/release/dark-cli artifacts/dark-cli-apple
@@ -95,9 +79,9 @@ jobs:
     - save_cache:
         paths:
         - target
-        key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        key: v0-cargo-build-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 workflows:
-  version: 2
+  version: 2.1
   build-and-deploy:
     jobs:
     - test
