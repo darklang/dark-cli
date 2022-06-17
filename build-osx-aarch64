@@ -16,4 +16,4 @@ done
 
 set -x
 
-cargo build --target x86_64-apple-darwin ${RELEASE}
+cargo build --target aarch64-apple-darwin ${RELEASE}
