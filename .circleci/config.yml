@@ -8,13 +8,10 @@ jobs:
     - run:
         name: Version information
         command: rustc --version; cargo --version; rustup --version
-    - run:
-        name: Calculate dependencies
-        command: cargo generate-lockfile
     - restore_cache:
-        name: Cargo.lock cache
         keys:
         - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v2-cargo-cache-{{ arch }}-
     - run:
         name: install-rust-deps
         command: rustup component add clippy-preview rustfmt-preview
@@ -26,7 +23,6 @@ jobs:
         paths:
         - target
     - save_cache:
-        name: Cargo.lock cache
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         paths:
         - target
@@ -38,13 +34,10 @@ jobs:
     - run:
         name: Version information
         command: rustc --version; cargo --version; rustup --version
-    - run:
-        name: Calculate dependencies
-        command: cargo generate-lockfile
     - restore_cache:
-        name: Cargo.lock cache
         keys:
         - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v2-cargo-cache-{{ arch }}-
     - run:
         name: install-apt-deps
         command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
@@ -65,7 +58,6 @@ jobs:
         path:
           artifacts
     - save_cache:
-        name: Cargo.lock cache
         paths:
         - target
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -80,13 +72,10 @@ jobs:
     - run:
         name: Version information
         command: source ~/.cargo/env; rustc --version; cargo --version; rustup --version
-    - run:
-        name: Calculate dependencies
-        command: source ~/.cargo/env; cargo generate-lockfile
     - restore_cache:
-        name: Cargo.lock cache
         keys:
         - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v2-cargo-cache-{{ arch }}-
     - run:
         name: install-rust-deps
         command: source ~/.cargo/env; rustup target add x86_64-apple-darwin
@@ -104,7 +93,6 @@ jobs:
         path:
           artifacts
     - save_cache:
-        name: Cargo.lock cache
         paths:
         - target
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
