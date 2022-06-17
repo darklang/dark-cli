@@ -40,7 +40,7 @@ jobs:
         - v2-cargo-cache-{{ arch }}-
     - run:
         name: install-apt-deps
-        command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
+        command: sudo apt update && sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-dev musl-tools
     - run:
         name: install-rust-deps
         command: rustup target add x86_64-unknown-linux-musl && rustup target add x86_64-pc-windows-gnu
