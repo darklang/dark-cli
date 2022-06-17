@@ -2,7 +2,7 @@ version: 2
 jobs:
   test:
     docker:
-    - image: circleci/rust:1.40.0-stretch
+    - image: cimg/rust:1.61.0
     steps:
     - checkout
     - run:
@@ -14,7 +14,7 @@ jobs:
     - restore_cache:
         name: Cargo.lock cache
         keys:
-        - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
     - run:
         name: install-rust-deps
         command: rustup component add clippy-preview rustfmt-preview
@@ -27,7 +27,7 @@ jobs:
         - target
     - save_cache:
         name: Cargo.lock cache
-        key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         paths:
         - target
   build:
@@ -44,7 +44,7 @@ jobs:
     - restore_cache:
         name: Cargo.lock cache
         keys:
-        - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
     - run:
         name: install-apt-deps
         command: sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools
@@ -68,10 +68,10 @@ jobs:
         name: Cargo.lock cache
         paths:
         - target
-        key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
   build-osx:
     macos:
-      xcode: "11.0.0"
+      xcode: "14.0.0"
     steps:
     - checkout
     - run:
@@ -86,7 +86,7 @@ jobs:
     - restore_cache:
         name: Cargo.lock cache
         keys:
-        - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
     - run:
         name: install-rust-deps
         command: source ~/.cargo/env; rustup target add x86_64-apple-darwin
@@ -107,7 +107,7 @@ jobs:
         name: Cargo.lock cache
         paths:
         - target
-        key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+        key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
 workflows:
   version: 2
   build-and-deploy:

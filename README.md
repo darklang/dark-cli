@@ -27,3 +27,6 @@ If you're building osx locally, you'll need to cd to osxcross, run
 On Ubuntu, you'll want:
 `sudo apt install -y clang gcc-mingw-w64-x86-64 llvm-4.0-dev musl-tools`;
 add deps here for other distros as needed.
+
+On OSX with an ARM chip (M1/M2):
+- brew install rustup

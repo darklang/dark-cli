@@ -178,7 +178,7 @@ fn form_body(dir: &str) -> Result<(reqwest::multipart::Form, u64), DarkError> {
             // contains /static/foo.md, and we tell this binary to upload build, we want the name
             // attached to that file to be static/foo.md so it is properly nested in gcloud
             .strip_prefix(dir)
-            .or_else(|_| Err(DarkError::MissingFilename()))?
+            .map_err(|_| DarkError::MissingFilename())?
             // Normalize paths to use forward slash (including on Windows):
             .to_slash_lossy();
         form = form.file(filename, file.path())?;
@@ -279,9 +279,9 @@ fn app() -> Result<(), DarkError> {
         // - the file at ./.netrc
         // - the file at ~/.netrc
         let netrc_home = dirs::home_dir()
-            .and_then(|mut netrc_home| {
+            .map(|mut netrc_home| {
                 netrc_home.push(".netrc");
-                Some(netrc_home)
+                netrc_home
             })
             .unwrap_or_default();
 
@@ -303,11 +303,9 @@ fn app() -> Result<(), DarkError> {
 
         let netrc_machine: Option<String> = host
             .parse::<Uri>()
-            .and_then(|uri| {
-                Ok(match uri.host() {
-                    Some(h) => h.to_owned(),
-                    _ => "".to_owned(),
-                })
+            .map(|uri| match uri.host() {
+                Some(h) => h.to_owned(),
+                _ => "".to_owned(),
             })
             .ok();
 
@@ -348,7 +346,7 @@ fn app() -> Result<(), DarkError> {
         msg: _msg,
     } = cookie_and_csrf(user, password)?;
 
-    let (form, size) = form_body(&dir.to_string())?;
+    let (form, size) = form_body(dir)?;
 
     println!(
         "Going to attempt to upload files totalling {}.",
@@ -379,9 +377,9 @@ fn app() -> Result<(), DarkError> {
     } else {
         req.multipart(form)
             .send()
-            .or_else(|error| {
+            .map_err(|error| {
                 println!("Err: {:?}", error);
-                Err(DarkError::Upload(error))
+                DarkError::Upload(error)
             })
             .and_then(|mut response| match response.status() {
                 StatusCode::OK => {
