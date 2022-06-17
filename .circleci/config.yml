@@ -8,11 +8,7 @@ jobs:
     - run:
         name: Version information
         command: rustc --version; cargo --version; rustup --version
-    - run:
-        name: Calculate dependencies
-        command: cargo generate-lockfile
     - restore_cache:
-        name: Cargo.lock cache
         keys:
         - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         - v2-cargo-cache-{{ arch }}-
@@ -27,7 +23,6 @@ jobs:
         paths:
         - target
     - save_cache:
-        name: Cargo.lock cache
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         paths:
         - target
@@ -39,11 +34,7 @@ jobs:
     - run:
         name: Version information
         command: rustc --version; cargo --version; rustup --version
-    - run:
-        name: Calculate dependencies
-        command: cargo generate-lockfile
     - restore_cache:
-        name: Cargo.lock cache
         keys:
         - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         - v2-cargo-cache-{{ arch }}-
@@ -67,7 +58,6 @@ jobs:
         path:
           artifacts
     - save_cache:
-        name: Cargo.lock cache
         paths:
         - target
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -82,11 +72,7 @@ jobs:
     - run:
         name: Version information
         command: source ~/.cargo/env; rustc --version; cargo --version; rustup --version
-    - run:
-        name: Calculate dependencies
-        command: source ~/.cargo/env; cargo generate-lockfile
     - restore_cache:
-        name: Cargo.lock cache
         keys:
         - v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
         - v2-cargo-cache-{{ arch }}-
@@ -107,7 +93,6 @@ jobs:
         path:
           artifacts
     - save_cache:
-        name: Cargo.lock cache
         paths:
         - target
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
