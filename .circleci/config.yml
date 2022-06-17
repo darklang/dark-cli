@@ -71,7 +71,7 @@ jobs:
         key: v2-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
   build-osx:
     macos:
-      xcode: "11.0.0"
+      xcode: "14.0.0"
     steps:
     - checkout
     - run:
