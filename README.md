@@ -1,4 +1,4 @@
-A cli for interacting with darklang - currently just for managing static assets.
+A CLI for interacting with darklang - currently just for managing static assets.
 
 # Cross-platform Build + Deploy Process using CI
 We currently do not automate deploys when merging to master. Here's how to deploy so that devs can download the dark-cli linked from https://ops-documentation.builtwithdark.com/user-manual/static-assets#installation:
